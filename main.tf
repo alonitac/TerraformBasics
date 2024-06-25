@@ -34,6 +34,8 @@ resource "aws_instance" "netflix_app" {
   instance_type = "t3.micro"
   vpc_security_group_ids = [aws_security_group.netflix_app_sg.id]
   key_name = aws_key_pair.deployer.key_name
+  user_data = file("./deploy.sh")
+  subnet_id = module.netflix_app_vpc.public_subnets[0]
 
   depends_on = [
     aws_s3_bucket.example
@@ -57,6 +59,7 @@ resource "aws_ebs_volume" "example" {
 resource "aws_security_group" "netflix_app_sg" {
   name        = "alonit-netflix-app-sg"   # change <your-name> accordingly
   description = "Allow SSH and HTTP traffic"
+  vpc_id = module.netflix_app_vpc.vpc_id
 
   ingress {
     from_port   = 22
@@ -91,5 +94,23 @@ resource "aws_s3_bucket" "example" {
 
   tags = {
     Name        = "alonit-netflix-bucket-123"
+  }
+}
+
+module "netflix_app_vpc" {
+  source  = "terraform-aws-modules/vpc/aws"
+  version = "5.8.1"
+
+  name = "alonit-netflix-vpc"
+  cidr = "10.0.0.0/16"
+
+  azs             = ["eu-north-1a", "eu-north-1b", "eu-north-1c"]
+  private_subnets = ["10.0.1.0/24"]
+  public_subnets  = ["10.0.2.0/24", "10.0.3.0/24"]
+
+  enable_nat_gateway = false
+
+  tags = {
+    Env         = var.env
   }
 }
